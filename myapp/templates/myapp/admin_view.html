@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta http-equiv="refresh" content="30">
+
+<head>
+    <meta charset="UTF-8">
+    <p>Login Name: {{ request.user.username }}</p>
+    <title>Admin Panel</title>
+</head>
+    
+    <style>
+
+	table {
+	  width: 100%;  
+	  border-collapse: collapse;	  
+    }
+	
+    th, td {
+	  border: 2px solid blue;
+      padding: 6px;
+      width: 30px;
+      height: 30px;
+	  text-align: center;	  
+	  vertical-align: middle;
+	  font-size: 20px;	  
+	  background-color: cyan;
+    }
+	
+	/* CSS for responsive design */
+    @media screen and (max-width: 600px) {
+    /* Adjust the table layout for small screens */
+    th, td {
+		display: block;
+        }
+	th {
+        text-align: center;
+        }
+    }
+    
+    @keyframes blink {
+    	0%, 100% {
+		  background-color: cyan;
+		}
+		50% {
+		  background-color: red;
+		  color: white;
+		}
+    
+    </style>
+
+    <body>
+    
+        <form method="post">
+        {% csrf_token %}
+                
+        <label for="inputBox" style="display: inline-block; font-weight: bold; padding-right: 10px;">Search Bearing Code:</label>	
+    	<input type="text" name="bearingCd" id="bearingCd"  size="3" placeholder="Enter code here..." onfocusout="highlightTable()"/>
+    	&nbsp;&nbsp;	
+    	<label id="bearingCdSumlbl" style="display: inline-block; font-size: 30px;font-weight: bold; padding-right: 10px; color: red;"></label>	
+    	&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp	
+        
+    	<label for="inputBox" style="display: inline-block; font-weight: bold; padding-right: 10px;">Enter No. of Breaks:</label>	
+    	<input type="text" name="bearingCds" id="bearingCds" placeholder="Enter code here..." onfocusout="createBreaks()"/>
+    	<label for="inputBox" id="nonZeroCnt" style="display: inline-block; font-size: 20px; font-weight: bold; padding-right: 10px;">({{ nonZeroCdCnt }})</label>
+    	
+    	<button type="submit" name="create_breaks" id="create_breaks" onclick="location.href='{% url 'create_breaks' %}'">Create Breaks</button>
+    	<!-- <button type="submit" name="download_break_file" id="download_break_file" onclick="location.href='{% url 'download_break_file' %}'">Download Break File</button> -->
+		<button type="submit" name="download_break_file" id="download_break_file" onclick = "onClickFill('dwnBrkFile')">Download Break File</button>
+    	
+    	&nbsp;&nbsp
+    	<!-- <label for="inputBox" style="display: inline-block; font-weight: bold; padding-right: 10px;">Maximum Breaks Can be Created:</label> -->	
+    	
+    	<!-- <button type="submit" name="delete_all_data" onclick="location.href='{% url 'delete_all_data' %}'">Delete All Data</button>-->
+		<!-- <button type="submit" name="download_all_data" onclick="location.href='{% url 'download_all_data' %}'">Download All Data</button>-->
+
+		<button type="submit" name="delete_all_data" onclick = "onClickFill('delAllDatacd')">Delete All Data</button>
+		<button type="submit" name="download_all_data" onclick = "onClickFill('dwnAllData')">Download All Data</button>
+
+		
+
+    	<br><br>
+		
+		<input type="hidden" name="insCode" id="insCode"></input>
+    	
+    	</form>
+    
+    <!--<h1>Entry List</h1> -->
+    
+        <label style="display: inline-block; font-weight: bold; font-size: 30px; padding-right: 10px;">Total:</label>
+        <label style="display: inline-block; font-weight: bold; font-size: 30px; color: blue; padding-right: 10px;">{{ sideTotal.allTotal }}</label>
+    	
+        <table id="adminTable">
+            <thead>
+        
+                <tr>
+                        <td><b>1</b></td>
+                        <td><b>2</b></td>
+                        <td><b>3</b></td>
+                        <td><b>4</b></td>
+                        <td><b>5</b></td>
+                        <td><b>6</b></td>
+                        <td><b>7</b></td>
+                        <td><b>8</b></td>
+                        <td><b>9</b></td>                  
+                        <td><b>0</b></td>
+                        <td><b>Total</b></td>
+                </tr>
+
+				<tr>
+                    {% for k,v in cCatItems.items %}
+						{% if forloop.counter == 1 %}                    
+                            <td><b>A >>> ({{ v }})</b></td>
+						{% else %}
+							<td><b>({{ v }})</b></td>
+						{% endif %}						
+                    {% endfor %} 
+					<td><b>({{ cCatTotal }})</b></td>              
+                </tr>
+
+				<tr>
+                    {% for k,v in catDictTotal.items %}                    
+						{% if forloop.counter == 1 %}                 
+                            <td><b>P >>> ({{ v }})</b></td>
+						{% else %}
+							<td><b>({{ v }})</b></td>
+						{% endif %}						
+                    {% endfor %}                
+                </tr>				
+                
+            </thead>
+            <tbody>        
+                
+                
+                {% for row in table_data %}
+                    <tr>
+                        {% for key, value in row %}
+                            <td>{{ key }}= {{ value }}</td>                        
+                        {% endfor %}
+                     
+                    {% if forloop.counter == 1 %}                
+                        <td rowspan="12"> {{ sideTotal.oneTwenty }} </td>
+                    {% elif forloop.counter == 13 %}
+                        <td rowspan="9"> {{ sideTotal.ninety }} </td>
+                    {% elif forloop.counter == 22 %}
+                        <td rowspan="1"> {{ sideTotal.ten }} </td>
+                    {% endif %}
+                    
+                    </tr>
+                                 
+                {% endfor %}            
+                
+            </tbody>        
+            
+            
+        </table>
+    
+    </body>
+    
+</html>
+
+<script>
+
+      document.getElementById('bearingCds').addEventListener('input', function(event) {
+            this.value = this.value.replace(/[^0-9,]/g, ''); // Remove characters other than numbers and commas
+        });
+
+	  function highlightTable() {	      
+	      pyDicts = JSON.parse('{{usrAdminDict|escapejs}}');
+	      	      
+		  var input, filter, table, tr, td, i, j;
+		  input = document.getElementById("bearingCd");
+		  filter = input.value;			  
+		  
+		  //console.log(document.getElementById("bearingCdSumlbl").value);
+		  if (document.getElementById("bearingCdSumlbl").text !== 'undefined' || document.getElementById("bearingCdSumlbl").text !== null) {
+		      document.getElementById("bearingCdSumlbl").textContent = '('+pyDicts[filter]+')';
+		      }
+		  
+		  table = document.getElementById("adminTable");
+		  tr = table.getElementsByTagName("tr");
+		  for (i = 1; i < tr.length; i++) { // Start from 1 to skip header row			
+			td = tr[i].getElementsByTagName("td");
+			
+			
+			for (j = 0; j < td.length; j++) {
+			  if (td[j]) {
+				//if (td[j].innerHTML.toUpperCase().indexOf(filter) > -1) {    			  
+    			  
+				  if (td[j].innerHTML.split('=')[0].replace("<","").trim() === filter.trim()) {				     
+					 td[j].style.animation = "blink 5s linear infinite";			  
+				  break;
+				} else {
+					 td[j].style.animation = "none"; // Remove animation
+				  }
+				}
+			  }
+			}			
+			
+	  }
+	  
+	  function createBreaks() {
+		document.getElementById('insCode').value = "createBreaks";
+		
+    	document.getElementById('create_breaks').disabled = false;
+    	  
+    	var brCds = document.getElementById("bearingCds").value;
+    	var nonZeroCnt = {{nonZeroCdCnt}}
+    	var cdSum = 0;
+    	  
+        ipBrCd = brCds.split(",");
+    	  
+    	for (cnt=0; cnt < ipBrCd.length; cnt++) {
+			cdSum += parseInt(ipBrCd[cnt]);
+    	}
+    	  
+    	if (cdSum >   nonZeroCnt) {
+			document.getElementById('create_breaks').disabled = true;	  
+    	}
+    	  	  
+	  }
+     
+
+	  function onClickFill (nameShow){
+		if (nameShow === 'delAllDatacd') {
+			if (confirm('Are you sure?')) {
+				//action confirmed
+				console.log('Ok is clicked.');
+				document.getElementById('insCode').value = nameShow;
+			} else {
+				//action cancelled
+				console.log('Cancel is clicked.');
+			}
+		}
+		else if (nameShow != 'delAllDatacd') {
+			document.getElementById('insCode').value = nameShow;
+		}	
+		
+	  }	  
+</script>
