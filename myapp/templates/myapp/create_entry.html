@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    
+    <!-- <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>-->
+    <script src="https://code.jquery.com/jquery-3.7.0.js"></script>   
+    <title>Create Entry</title>
+
+    <style>
+    .myTable {
+      width: 100%;
+      background-color: #ffffff;
+      border-collapse: collapse;
+      border-width: 2px;
+      border-color: #ffcc00;
+      border-style: solid;
+      color: #000000;
+    }
+    
+    .myTable td, .myTable th {
+      border-width: 2px;
+      border-color: #ffcc00;
+      border-style: solid;
+      padding: px;
+    }
+    
+    
+    .myTable thead {
+      background-color: #ffcc00;
+    }
+
+    .bad{
+        padding:2px;
+        animation: blink 3s infinite;        
+    }
+    
+    @keyframes blink {
+    	0%, 100% {
+		  background-color: cyan;
+		}
+		50% {
+		  background-color: orangered;
+		  color: red;
+		}
+        
+    
+    </style>
+
+    </style>
+    
+</head>
+<script src="https://unpkg.com/htmx.org@1.6.0"></script>
+<body>
+    <form hx-post="/myapp/create/" hx-target="body" method="post">
+
+        <p> Login Name: <a href="#" tabindex="-1"> {{ request.user.username }} <p></a>
+        <h1>Create Entry</h1>
+    
+        {% csrf_token %}
+        
+        <div class="form-group">
+    		<div id="result"></div>
+    	</div>
+	
+    	<label for="grpEntry">Group Entry:</label>
+    	<select tabindex="1" name="grpEntry" id="grpEntry">
+        	<option value="yes">Yes</option>
+            <option value="no">No</option>        	
+    	</select>
+        &nbsp;
+        <label for="folder">Bearing Type:</label>
+    	<select name="folder" id="folder" tabindex="0" onchange="toggleSecondField()">
+    		<option value="empty">Select an Option</option>
+    		<option value="code">Value</option>
+    		<option value="category">Category</option>
+    		<option value="singlebearing">Single Bearing</option>	
+    		<option value="doublebearing">Double Bearing</option>	
+    		<option value="triplebearing">Triple Bearing</option>	
+    		<option value="oddeven">Odd & Even</option>
+    		<option value="royalclub">Royal Club</option>
+    		<option value="generic">Generic</option>
+    		<option value="doubledigit">Double Digit</option>
+    		<option value="settype">Set</option>
+    		<option value="mixbearing">Mix Bearing</option>
+            <option value="ccat">C-Cat</option>
+    	</select>
+    	
+    	<div id="field2Container" style="display: none;">    		
+    		
+             <select id="oddevenSelect" name="oddevenSelect" style="display: none;">
+                <option value="">Select an Option</option>
+                <option value="exclusion">Exclusion</option>
+                <option value="inclusion">Inclusion</option>                
+            </select>
+            
+            <select id="singledouble" name="singledouble" style="display: none;">
+                <option value="">Select an Option</option>
+                <option value="single">Single</option>
+                <option value="double">Double</option>                
+            </select>            
+            
+            <label for="name">Bearing Code:</label>
+    		<!--<input type="text" name="bearing_code" id="bearing_code"  placeholder="Enter code here..." onkeyup="handleInput(event)" onfocusout="validateInput()"/>-->
+    		<input type="number" name="bearing_code" id="bearing_code"  placeholder="Enter code here..." oninput="copyText()" onkeyup="handleInput(event)" onkeypress="validateInput()" onfocusout="validateInput()" oninput="adjustInputSize(this)"/>
+    		<label for="name">Bearing Code Split:</label>
+    		<input dir="rtl" tabindex="-1" type="text" name="brCdSplit" id="brCdSplit" readonly/>
+    
+            <select id="field2Select" name="field2" style="display: none;">
+                <option value="oneTwenty">120</option>
+                <option value="ninety">90</option>
+                <option value="ten">10</option>
+            </select>    		
+    		
+        </div>
+        
+        <label for="text">Amount:</label>
+    	<input type="number" step="0.01" id="amount" name="amount" onkeyup="valAmt(event)" onfocusout ="valAmt()" onsubmit = "valAmt()" required/>
+        		
+        <button type="submit" name="addButton" id="addButton" onclick= "getTableData()">Save Entry</button>
+		
+		
+        
+        
+        <button type="button" onclick="clearForm()">Clear Values</button>
+        <input type="hidden" name="entryNo" id="entryNo"></input>
+        <input type="hidden" name="prevEntry" id="prevEntry"></input>
+        
+        <!-- {% csrf_token %} -->
+        <!-- {{ form.as_p }} -->
+        
+        <select id="addOrEdit" name="addOrEdit" style="display: none;">
+                <option value="empty">Select an Option</option>
+                <option value="add">Add</option>
+                <option value="edit">Edit</option>                
+        </select>
+    
+        {% if messages %}
+            <div class="alert alert-success alert-dismissible">
+                    {% for message in messages %}
+                        <p>{{ message }}</p>
+                    {% endfor %}
+            </div>
+        {% endif %}
+
+<h1>Entry List</h1>	
+	
+    <table class="myTable" id="usrDisplayTable">
+        <thead>
+            <tr>
+                <th align= "left">Group Entry</th>
+                <th align= "left">Bearing Type</th>
+                <th align= "left">Sub Type</th>
+                <th align= "left">Code</th>
+                <th align= "left">Quantity - ({{ tabTotal }})</th>
+                <th align= "left">Date Time</th>
+                <th align= "left">Action</th>
+                <!-- <th>Entry No.</th>-->
+            </tr>
+        </thead>
+        <tbody>
+        
+        <!-- enumerate doesn't work in django :( -->
+            {% for key, value in usrDisplayDict.items %}
+            <tr dataRowId = {{forloop.counter}} >
+                <!-- <td>{{ key }}</td> -->
+                {% for disValue in value %}
+                    {% if forloop.counter <= 6 %}
+                        <td>{{ disValue.capitalize }}</td>
+                    {% endif %}
+                {% endfor %}
+                <td><a href="#" id="editbtn" onclick="editUser({{usrDisplayDict.code}} {{forloop.counter}})">Edit</a></td>
+                <td hidden>{{ forloop.counter }}</td>
+
+                {% for disValue in value %}
+                    {% if forloop.counter == 7 %}
+                        <td hidden>{{ disValue }}</td>
+                    {% endif %}                    
+                {% endfor %}                
+                
+            </tr>           
+
+            {% endfor %}          
+            
+            
+        </tbody>
+    </table>
+    <br></br>
+    
+    {% for key, value in usrDisplayDict.items %}
+        {% if forloop.counter == 2  %}
+            <button name="applyBreak" id="applyBreak" align:"center" onclick="location.href='{% url 'create_new_group' %}'">Create New Group</button>
+        {% endif %}        
+    {% endfor %}
+    
+    </form>
+    
+</body>
+</html>
+
+<script>
+
+
+    document.addEventListener('keydown', function(event) {
+        if (event.which === 9) {
+            if (document.getElementById('amount').value != "") {
+                document.getElementById('addButton').disabled = false;            
+            }
+        }
+    });    
+
+    function resetGrpEntry(){
+        console.log('called');
+        document.getElementById('grpEntry').value = "yes";
+    }    
+
+    function getTableData(){
+		
+		
+		//console.log(usrDisplayTable.rows.length);
+		if (document.getElementById('addButton').innerHTML === "Save Entry") {
+			console.log('enterno sent');
+			document.getElementById('entryNo').value = usrDisplayTable.rows.length;
+		}
+		
+		if (document.getElementById('amount').value == "" || document.getElementById('bearing_code').value == "") {
+			alert("Required Not Entered!");
+		}
+			
+		//gets table
+		var oTable = document.getElementById('usrDisplayTable');
+		var rowVal = new Array();
+		//gets rows of table
+		var rowLength = oTable.rows.length;
+		
+		//loops through rows    
+		for (i = 0; i < rowLength; i++){
+		
+		  //gets cells of current row  
+		   var oCells = oTable.rows.item(i).cells;
+		
+		   //gets amount of cells of current row
+		   var cellLength = oCells.length;
+		
+		   //loops through each cell in current row
+		   for(var j = 0; j < cellLength; j++){
+			  // get your cell info here
+		
+			  var cellVal = oCells.item(j).innerHTML;
+			  rowVal[j] = cellVal;
+		   }
+		}
+		
+		//console.log('printing rowVal');
+		//console.log(rowVal);
+		$.ajax({
+		method: 'POST',        
+		data:  {'rowVal[]': rowVal},        
+		headers: {'X-CSRFToken': '{{ csrf_token }}'},        
+		})
+		.done(function() {
+		   alert( "Data Saved: " );
+		})
+		.fail(function() {
+		   alert( "Data Not Saved: " );
+		});
+		
+		document.getElementById('grpEntry').focus();
+
+    }
+
+
+	function clearForm() {
+    	//location.reload();
+        document.getElementsByTagName('form')[0].reset();
+        //document.getElementById('grpEntry').value = 'yes';
+		//#document.getElementById('bearing_code').value = '';
+		//document.getElementById('amount').value = '';
+		//document.getElementById('result').innerHTML = '';
+		//document.getElementById('folder').value = 'empty';
+		//document.getElementById('brCdSplit').innerHTML.value = '';
+		//document.getElementById('oddevenSelect').innerHTML = 'oddeven';
+		//document.getElementById('singledouble').innerHTML = 'singleentry';
+		//document.getElementById('addButton').innerHTML = 'Save Entry';		
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Set focus on the select box when the page loads
+        document.getElementById('grpEntry').focus();
+    });
+
+    function editUser(dataRowId) {
+        // Fill the input fields with the user details
+            
+        var lastAmt = '{{ codeVal }}';
+        var lastBrCd = '{{ codeB4Split }}';
+        //usrDisplayDict = '{{ usrDisplayDict }}'.replace(/&#x27;/g,"'");
+
+        var pyUsrDict = JSON.parse('{{ data_json1|escapejs }}');		
+        var pyUsrDict = ('Dictionary 1:', pyUsrDict[0]);
+        var myTableCells = document.getElementById('usrDisplayTable').getElementsByTagName('td');
+        
+        document.getElementById('prevEntry').value = ''
+        
+        sampleRow = document.getElementById('usrDisplayTable').rows[dataRowId].cells;        
+        
+        if (sampleRow[0].innerHTML.trim() === 'Yes') {            
+            document.getElementById('grpEntry').value = "yes";
+            document.getElementById('prevEntry').value = "yes";
+        } else {            
+            document.getElementById('grpEntry').value = "no";
+            document.getElementById('prevEntry').value = "no";               
+        }
+
+        if (sampleRow[1].innerHTML.trim() === 'Code') {                        
+            document.getElementById('folder').value = "code";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "code" + ",";
+        }        
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Ccat') {
+            document.getElementById('folder').value = "ccat";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "Ccat" + ",";
+        }
+
+        else if (sampleRow[1].innerHTML.trim() === 'Category') {
+            document.getElementById('folder').value = "category";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "category" + ",";
+        }
+            
+        else if (sampleRow[1].innerHTML.trim() === 'Singlebearing') {
+            document.getElementById('folder').value = "singlebearing";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "singlebearing" + ",";
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Doublebearing') {
+            document.getElementById('folder').value = "doublebearing";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "doublebearing"  + ",";
+        }
+            
+        else if (sampleRow[1].innerHTML.trim() === 'Triplebearing') {
+            document.getElementById('folder').value = "triplebearing";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "triplebearing"  + ",";
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Doubledigit') {
+            document.getElementById('folder').value = "doubledigit";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "doubledigit"  + ",";
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Settype') {
+            document.getElementById('folder').value = "settype";
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "settype"  + ",";
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Mixbearing') {
+            document.getElementById('folder').value = "mixbearing";         
+            //console.log(sampleRow[1].innerHTML.toLowerCase().trim());
+            document.getElementById('singledouble').value = sampleRow[2].innerHTML.toLowerCase().trim();
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "mixbearing" + "," + sampleRow[2].innerHTML.toLowerCase().trim();
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Oddeven') {
+            //console.log (sampleRow[1].innerHTML.trim());
+            document.getElementById('folder').value = "oddeven"
+            document.getElementById('oddevenSelect').value = sampleRow[2].innerHTML.toLowerCase().trim();
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "oddeven" + "," + sampleRow[2].innerHTML.toLowerCase().trim();        
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Royalclub') {
+            //console.log (sampleRow[2].innerHTML.trim());
+            document.getElementById('folder').value = "royalclub"
+            document.getElementById('oddevenSelect').value = sampleRow[2].innerHTML.toLowerCase().trim();
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "royalclub" + "," + sampleRow[2].innerHTML.toLowerCase().trim();
+        
+        }
+        
+        else if (sampleRow[1].innerHTML.trim() === 'Generic') {
+            //console.log (sampleRow[2].innerHTML.trim());
+            document.getElementById('folder').value = "generic"
+            document.getElementById('singledouble').value = sampleRow[2].innerHTML.toLowerCase().trim();
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + "generic" + "," + sampleRow[2].innerHTML.toLowerCase().trim();  
+        }
+        
+        //document.getElementById('bearing_code').value = myTableCells[2].innerHTML.replace(/-/g,"");
+        
+        //pK = 'LastEntry'+dataRowId        
+        if (sampleRow[0].innerHTML.trim() === 'No') {
+            document.getElementById('bearing_code').value = lastBrCd;
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + lastBrCd;
+        }
+        else if (sampleRow[0].innerHTML.trim() === 'Yes') {
+			console.log(pyUsrDict['LastEntry']);
+            document.getElementById('bearing_code').value = pyUsrDict['LastEntry'+dataRowId][7].replace(/-/g,"");
+            document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + pyUsrDict['LastEntry'+dataRowId][3].replace(/-/g,"");            
+        }
+
+        document.getElementById('brCdSplit').value = sampleRow[3].innerHTML
+        document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + sampleRow[3].innerHTML;
+
+        document.getElementById('amount').value = sampleRow[8].innerHTML;
+        document.getElementById('prevEntry').value = document.getElementById('prevEntry').value + "," + sampleRow[8].innerHTML;
+
+        document.getElementById('entryNo').value = sampleRow[7].innerHTML;//Hidden TextBox entryNo           
+        document.getElementById('addButton').innerHTML = "Edit Entry";   
+        document.getElementById("addButton").style.background='#FF0000';
+        document.getElementById("addButton").style.color='#FFFFFF';
+        toggleSecondField()
+        document.getElementById('bearing_code').focus();
+    }
+
+     function copyText() {
+            // Get the value from the first text box
+            var textbox1Value = document.getElementById('bearing_code').value.replace(/[^0-9]/g,"");
+            
+            // Set the value of the second text box to be the same
+            document.getElementById('brCdSplit').value = textbox1Value;
+        }
+
+
+
+    // Function to handle the keyup event
+    function handleInput(event) {	  
+      //var input = event.target;
+      var input = document.getElementById('brCdSplit');
+       // Remove existing hyphens from the input text
+      
+	  //console.log ('input value:', input.value);
+	  
+	  if (document.getElementById('folder').value === 'code' || document.getElementById('folder').value === 'royalclub') {
+		  var inputText = input.value.replace(/-/g, "");
+		  var chunks = inputText.match(/.{1,3}/g); // Split the input text into chunks of three characters
+	  }
+	  else if (document.getElementById('folder').value === 'category'
+              ||document.getElementById('folder').value === 'ccat'
+        	  || document.getElementById('folder').value === 'singlebearing'
+        	  || document.getElementById('folder').value === 'doublebearing'
+        	  || document.getElementById('folder').value === 'triplebearing'
+        	  || document.getElementById('folder').value === 'oddeven'
+        	  || document.getElementById('folder').value === 'generic') {        	  
+		  var inputText = input.value.replace(/-/g, "");
+		  var chunks = inputText.match(/.{1,1}/g); // Split the input text into chunks of one characters
+	  }
+	  
+	  else if (document.getElementById('folder').value === 'doubledigit'
+        	   || document.getElementById('folder').value === 'settype') {
+    	  var inputText = input.value.replace(/-/g, "");
+		  var chunks = inputText.match(/.{1,2}/g); // Split the input text into chunks of two characters
+	  }
+	  
+      else if (document.getElementById('folder').value === 'mixbearing' && document.getElementById('singledouble').value === 'single') {
+          const mixCombinedRes = [];
+          var input = document.getElementById('bearing_code');
+          //console.log(input);
+          var inputText = input.value.replace(/-/g, "");
+		  var chunks = inputText.match(/.{1,10}/g); // Split the input text into chunks of one characters
+		  
+		  
+		  inp = input.value;
+		  //console.log('printing input', inp);
+          for (let i = 0; i < inp.length - 2; i++) {
+              for (let j = i + 1; j < inp.length - 1; j++) {
+                for (let k = j + 1; k < inp.length; k++) {                  
+                    const mixCombined = (inp[i] + inp[j] + inp[k]);
+                    mixCombinedRes.push(mixCombined)
+                      }
+                    }       
+                  }                
+          const myOpt = mixCombinedRes.join("-");          
+          myTxtBox = document.getElementById('brCdSplit');
+          //console.log(myOpt);
+          document.getElementById('bearing_code').onblur = function (){
+          myTxtBox.value = myOpt;
+          }
+          
+		  
+	  }
+	  
+	  else if (document.getElementById('folder').value === 'mixbearing' && document.getElementById('singledouble').value === 'double') {
+	  
+        
+        const dgt = document.getElementById('bearing_code').value;
+        console.log(dgt.length);
+        var myOpt = '';
+        
+        //1234
+        for (let i = 0; i < dgt.length-1; i++) {
+        
+            for (let j = i+1; j < dgt.length; j++) {                
+                myOpt += '-' +  dgt[i] + dgt[i] + dgt[j];
+                myOpt += '-' +  dgt[i] + dgt[j] + dgt[j];
+            }
+        }
+                
+        myTxtBox = document.getElementById('brCdSplit');
+        document.getElementById('bearing_code').onblur = function (){
+        myTxtBox.value = myOpt.replace('-','');
+        }
+    }
+
+      input.value = chunks ? chunks.join('-') : ''; // Set the input value with hyphens
+	  
+    }
+    
+    function toggleSecondField() {
+          var field1 = document.getElementById("folder");
+		  var field2Container = document.getElementById("field2Container");
+		  var field2 = document.getElementById("bearing_code");
+		  var field3 = document.getElementById("oddevenSelect");
+		  var field4 = document.getElementById("singledouble");		  
+		  var field2Select = document.getElementById("field2Select");		  
+		
+		  singledouble.style.display = "none";
+		  oddevenSelect.style.display = "none";
+		  field2Select.style.display = "none";
+          
+          
+          if (field1.value == "oddeven") {                          
+              field3.style.display = "none";              
+              oddevenSelect.style.display = "inline";
+          } 
+          
+          else if (field1.value == "generic") {              
+              field4.style.display = "none";
+              singledouble.style.display = "inline";   
+          }
+          
+          else if (field1.value == "mixbearing") {              
+              field4.style.display = "none";
+              singledouble.style.display = "inline";   
+          }
+          
+          else if (field1.value == "bulk_update") {
+			  field2.style.display = "inline";
+              field2Select.style.display = "none";
+          }           
+
+          field2Container.style.display = "inline";          
+          
+          if (document.getElementById('addButton').innerHTML === 'Save Entry') {
+              //console.log ('inside save entry')
+              document.getElementById('addOrEdit').value = 'add';
+          }
+          else if (document.getElementById('addButton').innerHTML === 'Edit Entry') {
+              document.getElementById('addOrEdit').value = 'edit';
+          }
+     }
+     
+     function validateInput() {
+
+	  document.getElementById('result').innerHTML = '';
+	  document.getElementById('addButton').disabled = false;
+      //var input = document.getElementById('bearing_code').value;
+      var input = document.getElementById('brCdSplit').value;  
+	  var inpCd = document.getElementById('folder').value; 	  
+		
+      // Validate each chunk against the valid array
+      if ('{{ data_json|escapejs }}' === "") {
+        var pyDicts = JSON.parse('[{\u0022128\u0022: 0, \u0022129\u0022: 0, \u0022120\u0022: 0, \u0022130\u0022: 0, \u0022140\u0022: 0, \u0022123\u0022: 0, \u0022124\u0022: 0, \u0022125\u0022: 0, \u0022126\u0022: 0, \u0022127\u0022: 0, \u0022137\u0022: 0, \u0022138\u0022: 0, \u0022139\u0022: 0, \u0022149\u0022: 0, \u0022159\u0022: 0, \u0022150\u0022: 0, \u0022160\u0022: 0, \u0022134\u0022: 0, \u0022135\u0022: 0, \u0022136\u0022: 0, \u0022146\u0022: 0, \u0022147\u0022: 0, \u0022148\u0022: 0, \u0022158\u0022: 0, \u0022168\u0022: 0, \u0022169\u0022: 0, \u0022179\u0022: 0, \u0022170\u0022: 0, \u0022180\u0022: 0, \u0022145\u0022: 0, \u0022236\u0022: 0, \u0022156\u0022: 0, \u0022157\u0022: 0, \u0022167\u0022: 0, \u0022230\u0022: 0, \u0022178\u0022: 0, \u0022250\u0022: 0, \u0022189\u0022: 0, \u0022234\u0022: 0, \u0022190\u0022: 0, \u0022245\u0022: 0, \u0022237\u0022: 0, \u0022238\u0022: 0, \u0022239\u0022: 0, \u0022249\u0022: 0, \u0022240\u0022: 0, \u0022269\u0022: 0, \u0022260\u0022: 0, \u0022270\u0022: 0, \u0022235\u0022: 0, \u0022290\u0022: 0, \u0022246\u0022: 0, \u0022247\u0022: 0, \u0022248\u0022: 0, \u0022258\u0022: 0, \u0022259\u0022: 0, \u0022278\u0022: 0, \u0022279\u0022: 0, \u0022289\u0022: 0, \u0022280\u0022: 0, \u0022380\u0022: 0, \u0022345\u0022: 0, \u0022256\u0022: 0, \u0022257\u0022: 0, \u0022267\u0022: 0, \u0022268\u0022: 0, \u0022340\u0022: 0, \u0022350\u0022: 0, \u0022360\u0022: 0, \u0022370\u0022: 0, \u0022470\u0022: 0, \u0022390\u0022: 0, \u0022346\u0022: 0, \u0022347\u0022: 0, \u0022348\u0022: 0, \u0022349\u0022: 0, \u0022359\u0022: 0, \u0022369\u0022: 0, \u0022379\u0022: 0, \u0022389\u0022: 0, \u0022489\u0022: 0, \u0022480\u0022: 0, \u0022490\u0022: 0, \u0022356\u0022: 0, \u0022357\u0022: 0, \u0022358\u0022: 0, \u0022368\u0022: 0, \u0022378\u0022: 0, \u0022450\u0022: 0, \u0022460\u0022: 0, \u0022560\u0022: 0, \u0022570\u0022: 0, \u0022580\u0022: 0, \u0022590\u0022: 0, \u0022456\u0022: 0, \u0022367\u0022: 0, \u0022458\u0022: 0, \u0022459\u0022: 0, \u0022469\u0022: 0, \u0022479\u0022: 0, \u0022579\u0022: 0, \u0022589\u0022: 0, \u0022670\u0022: 0, \u0022680\u0022: 0, \u0022690\u0022: 0, \u0022457\u0022: 0, \u0022467\u0022: 0, \u0022468\u0022: 0, \u0022478\u0022: 0, \u0022569\u0022: 0, \u0022678\u0022: 0, \u0022679\u0022: 0, \u0022689\u0022: 0, \u0022789\u0022: 0, \u0022780\u0022: 0, \u0022790\u0022: 0, \u0022890\u0022: 0, \u0022567\u0022: 0, \u0022568\u0022: 0, \u0022578\u0022: 0, \u0022100\u0022: 0, \u0022110\u0022: 0, \u0022166\u0022: 0, \u0022112\u0022: 0, \u0022113\u0022: 0, \u0022114\u0022: 0, \u0022115\u0022: 0, \u0022116\u0022: 0, \u0022117\u0022: 0, \u0022118\u0022: 0, \u0022119\u0022: 0, \u0022200\u0022: 0, \u0022229\u0022: 0, \u0022220\u0022: 0, \u0022122\u0022: 0, \u0022277\u0022: 0, \u0022133\u0022: 0, \u0022224\u0022: 0, \u0022144\u0022: 0, \u0022226\u0022: 0, \u0022155\u0022: 0, \u0022228\u0022: 0, \u0022300\u0022: 0, \u0022266\u0022: 0, \u0022177\u0022: 0, \u0022330\u0022: 0, \u0022188\u0022: 0, \u0022233\u0022: 0, \u0022199\u0022: 0, \u0022244\u0022: 0, \u0022227\u0022: 0, \u0022255\u0022: 0, \u0022337\u0022: 0, \u0022338\u0022: 0, \u0022339\u0022: 0, \u0022448\u0022: 0, \u0022223\u0022: 0, \u0022288\u0022: 0, \u0022225\u0022: 0, \u0022299\u0022: 0, \u0022335\u0022: 0, \u0022336\u0022: 0, \u0022355\u0022: 0, \u0022400\u0022: 0, \u0022366\u0022: 0, \u0022466\u0022: 0, \u0022377\u0022: 0, \u0022440\u0022: 0, \u0022388\u0022: 0, \u0022334\u0022: 0, \u0022344\u0022: 0, \u0022499\u0022: 0, \u0022445\u0022: 0, \u0022446\u0022: 0, \u0022447\u0022: 0, \u0022556\u0022: 0, \u0022449\u0022: 0, \u0022477\u0022: 0, \u0022559\u0022: 0, \u0022488\u0022: 0, \u0022399\u0022: 0, \u0022660\u0022: 0, \u0022599\u0022: 0, \u0022455\u0022: 0, \u0022500\u0022: 0, \u0022600\u0022: 0, \u0022557\u0022: 0, \u0022558\u0022: 0, \u0022577\u0022: 0, \u0022550\u0022: 0, \u0022588\u0022: 0, \u0022688\u0022: 0, \u0022779\u0022: 0, \u0022699\u0022: 0, \u0022799\u0022: 0, \u0022880\u0022: 0, \u0022566\u0022: 0, \u0022800\u0022: 0, \u0022667\u0022: 0, \u0022668\u0022: 0, \u0022669\u0022: 0, \u0022778\u0022: 0, \u0022788\u0022: 0, \u0022770\u0022: 0, \u0022889\u0022: 0, \u0022899\u0022: 0, \u0022700\u0022: 0, \u0022990\u0022: 0, \u0022900\u0022: 0, \u0022677\u0022: 0, \u0022777\u0022: 0, \u0022444\u0022: 0, \u0022111\u0022: 0, \u0022888\u0022: 0, \u0022555\u0022: 0, \u0022222\u0022: 0, \u0022999\u0022: 0, \u0022666\u0022: 0, \u0022333\u0022: 0, \u0022000\u0022: 0}, {\u00221\u0022: [128, 137, 146, 236, 245, 290, 380, 470, 489, 560, 579, 678, 100, 119, 155, 227, 335, 344, 399, 588, 669, 777], \u00222\u0022: [129, 138, 147, 156, 237, 246, 345, 390, 480, 570, 589, 679, 110, 200, 228, 255, 336, 499, 660, 688, 778, 444], \u00223\u0022: [120, 139, 148, 157, 238, 247, 256, 346, 490, 580, 670, 689, 166, 229, 300, 337, 355, 445, 599, 779, 788, 111], \u00224\u0022: [130, 149, 158, 167, 239, 248, 257, 347, 356, 590, 680, 789, 112, 220, 266, 338, 400, 446, 455, 699, 770, 888], \u00225\u0022: [140, 159, 168, 230, 249, 258, 267, 348, 357, 456, 690, 780, 113, 122, 177, 339, 366, 447, 500, 799, 889, 555], \u00226\u0022: [123, 150, 169, 178, 240, 259, 268, 349, 358, 367, 457, 790, 114, 277, 330, 448, 466, 556, 600, 880, 899, 222], \u00227\u0022: [124, 160, 179, 250, 269, 278, 340, 359, 368, 458, 467, 890, 115, 133, 188, 223, 377, 449, 557, 566, 700, 999], \u00228\u0022: [125, 134, 170, 189, 260, 279, 350, 369, 378, 459, 468, 567, 116, 224, 233, 288, 440, 477, 558, 800, 990, 666], \u00229\u0022: [126, 135, 180, 234, 270, 289, 360, 379, 450, 469, 478, 568, 117, 144, 199, 225, 388, 559, 577, 667, 900, 333], \u00220\u0022: [127, 136, 145, 190, 235, 280, 370, 389, 460, 479, 569, 578, 118, 226, 244, 299, 334, 488, 550, 668, 677, \u0022000\u0022]}, {\u002200\u0022: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900], \u002210\u0022: [100, 110, 120, 130, 140, 150, 160, 170, 180, 190], \u002211\u0022: [110, 111, 112, 113, 114, 115, 116, 117, 118, 119], \u002212\u0022: [112, 120, 122, 123, 124, 125, 126, 127, 128, 129], \u002213\u0022: [113, 123, 130, 133, 134, 135, 136, 137, 138, 139], \u002214\u0022: [114, 124, 134, 140, 144, 145, 146, 147, 148, 149], \u002215\u0022: [115, 125, 135, 145, 150, 155, 156, 157, 158, 159], \u002216\u0022: [116, 126, 136, 146, 156, 160, 166, 167, 168, 169], \u002217\u0022: [117, 127, 137, 147, 157, 167, 170, 177, 178, 179], \u002218\u0022: [118, 128, 138, 148, 158, 168, 178, 180, 188, 189], \u002219\u0022: [119, 129, 139, 149, 159, 169, 179, 189, 190, 199], \u002220\u0022: [120, 200, 220, 230, 240, 250, 260, 270, 280, 290], \u002222\u0022: [122, 220, 222, 223, 224, 225, 226, 227, 228, 229], \u002223\u0022: [123, 223, 230, 233, 234, 235, 236, 237, 238, 239], \u002224\u0022: [124, 224, 234, 240, 244, 245, 246, 247, 248, 249], \u002225\u0022: [125, 225, 235, 245, 250, 255, 256, 257, 258, 259], \u002226\u0022: [126, 226, 236, 246, 256, 260, 266, 267, 268, 269], \u002227\u0022: [127, 227, 237, 247, 257, 267, 270, 277, 278, 279], \u002228\u0022: [128, 228, 238, 248, 258, 268, 278, 280, 288, 289], \u002229\u0022: [129, 229, 239, 249, 259, 269, 279, 289, 290, 299], \u002230\u0022: [130, 230, 300, 330, 340, 350, 360, 370, 380, 390], \u002233\u0022: [133, 233, 330, 333, 334, 335, 336, 337, 338, 339], \u002234\u0022: [134, 234, 334, 340, 344, 345, 346, 347, 348, 349], \u002235\u0022: [135, 235, 335, 345, 350, 355, 356, 357, 358, 359], \u002236\u0022: [136, 236, 336, 346, 356, 360, 366, 367, 368, 369], \u002237\u0022: [137, 237, 337, 347, 357, 367, 370, 377, 378, 379], \u002238\u0022: [138, 238, 338, 348, 358, 368, 378, 380, 388, 389], \u002239\u0022: [139, 239, 339, 349, 359, 369, 379, 389, 390, 399], \u002240\u0022: [140, 240, 340, 400, 440, 450, 460, 470, 480, 490], \u002244\u0022: [144, 244, 344, 440, 444, 445, 446, 447, 448, 449], \u002245\u0022: [145, 245, 345, 445, 450, 455, 456, 457, 458, 459], \u002246\u0022: [146, 246, 346, 446, 456, 460, 466, 467, 468, 469], \u002247\u0022: [147, 247, 347, 447, 457, 467, 470, 477, 478, 479], \u002248\u0022: [148, 248, 348, 448, 458, 468, 478, 480, 488, 489], \u002249\u0022: [149, 249, 349, 449, 459, 469, 479, 489, 490, 499], \u002250\u0022: [150, 250, 350, 450, 500, 550, 560, 570, 580, 590], \u002255\u0022: [155, 255, 355, 455, 550, 555, 556, 557, 558, 559], \u002256\u0022: [156, 256, 356, 456, 556, 560, 566, 567, 568, 569], \u002257\u0022: [157, 257, 357, 457, 557, 567, 570, 577, 578, 579], \u002258\u0022: [158, 258, 358, 458, 558, 568, 578, 580, 588, 589], \u002259\u0022: [159, 259, 359, 459, 559, 569, 579, 589, 590, 599], \u002260\u0022: [160, 260, 360, 460, 560, 600, 660, 670, 680, 690], \u002266\u0022: [166, 266, 366, 466, 566, 660, 666, 667, 668, 669], \u002267\u0022: [167, 267, 367, 467, 567, 667, 670, 677, 678, 679], \u002268\u0022: [168, 268, 368, 468, 568, 668, 678, 680, 688, 689], \u002269\u0022: [169, 269, 369, 469, 569, 669, 679, 689, 690, 699], \u002270\u0022: [170, 270, 370, 470, 570, 670, 700, 770, 780, 790], \u002277\u0022: [177, 277, 377, 477, 577, 677, 770, 777, 778, 779], \u002278\u0022: [178, 278, 378, 478, 578, 678, 778, 780, 788, 789], \u002279\u0022: [179, 279, 379, 479, 579, 679, 779, 789, 790, 799], \u002280\u0022: [180, 280, 380, 480, 580, 680, 780, 800, 880, 890], \u002288\u0022: [188, 288, 388, 488, 588, 688, 788, 880, 888, 889], \u002289\u0022: [189, 289, 389, 489, 589, 689, 789, 889, 890, 899], \u002290\u0022: [190, 290, 390, 490, 590, 690, 790, 890, 900, 990], \u002299\u0022: [199, 299, 399, 499, 599, 699, 799, 899, 990, 999]}, {\u002230\u0022: [128, 136, 138, 147, 148, 149, 158, 168, 169, 247, 249, 250, 257, 258, 259, 269, 270, 279, 350, 358, 360, 368, 369, 370, 380, 469, 470, 479, 570, 580], \u002240\u0022: [124, 125, 128, 129, 130, 134, 140, 145, 170, 178, 180, 189, 230, 235, 236, 239, 245, 256, 289, 290, 340, 346, 347, 356, 367, 390, 457, 458, 467, 478, 568, 569, 578, 589, 670, 679, 689, 690, 780, 790], \u002250\u0022: [135, 136, 137, 138, 139, 146, 147, 148, 149, 157, 158, 159, 168, 169, 179, 240, 246, 247, 248, 249, 250, 257, 258, 259, 260, 268, 269, 270, 279, 280, 350, 357, 358, 359, 360, 368, 369, 370, 379, 380, 460, 468, 469, 470, 479, 480, 570, 579, 580, 680], \u002270\u0022: [120, 123, 124, 125, 126, 127, 128, 129, 130, 134, 140, 145, 150, 156, 160, 167, 170, 178, 180, 189, 190, 230, 234, 235, 236, 237, 238, 239, 245, 256, 267, 278, 289, 290, 340, 345, 346, 347, 348, 349, 356, 367, 378, 389, 390, 450, 456, 457, 458, 459, 467, 478, 489, 490, 560, 567, 568, 569, 578, 589, 590, 670, 678, 679, 689, 690, 780, 789, 790, 890]}]');
+        } 
+      else {
+        var pyDicts = JSON.parse('{{ data_json|escapejs }}'); 
+      }
+      
+      var pyDict = ('Dictionary 1:', pyDicts[0]);
+      var pyCatDict = ('Dictionary 2:', pyDicts[1]);      
+      var pyDblDgDict = ('Dictionary 3:', pyDicts[2]);      
+      var pySetDict = ('Dictionary 4:', pyDicts[3]);      
+      
+	  var pyValidBUList = [120,90,10];
+	  var inputChunks = input.split('-');	          
+	  var inputCatChunks = inpCd.split('-');
+	  var inputBUChunks = inpCd.split('-');	          
+	  var tmpChunk = '';
+	  var tmpCatChunk = '';
+	  
+	  //console.log(input);
+	  //console.log(inpCd);
+      //for (var key in pyDict) {
+	  for (var i = 0; i < inputChunks.length; i++) {
+		
+			var updatedBrCds = Object.keys(pyDict).map(function(element) {
+				return parseInt(element.split('~')[0]);
+			});
+			var updatedBrCat = Object.keys(pyCatDict).map(function(element) {
+				return parseInt(element.split('~')[0]);	
+			});
+			
+			if (inpCd == 'code' && !(updatedBrCds.includes(parseInt(inputChunks[i]))) 
+    			|| inpCd == 'mixbearing' && !(updatedBrCds.includes(parseInt(inputChunks[i]))) 
+    			|| inpCd == 'category' && !(updatedBrCat.includes(parseInt(inputChunks[i])))
+                || inpCd == 'ccat' && !(updatedBrCat.includes(parseInt(inputChunks[i])))
+    			|| inpCd == 'royalclub' && !(updatedBrCds.includes(parseInt(inputChunks[i])))) {
+				var colorClass = 'error';		  
+				var postChkValues = '<span class="' + colorClass + '">' + inputChunks[i] + '</span>';
+				tmpChunk += '-' + postChkValues;
+				//var errorMsg = '<span class="' + colorClass + '">' + 'Invalid Bearing Code Entered: ' + '</span>';
+                var errorMsg = '<span class="bad">' + 'Invalid Bearing Code Entered: ' + '</span>';
+				
+				return "ErrorOccured";
+			} 
+		//}
+      }     
+      
+      //doubledigit check	   
+	  for (var i = 0; i < inputChunks.length; i++) {
+			
+			var updatedBrCds = Object.keys(pyDblDgDict).map(function(element) {				
+				return parseInt(element.split('~')[0]);				
+			});
+			var updatedBrCds2 = Object.keys(pySetDict).map(function(element) {				
+				return parseInt(element.split('~')[0]);				
+			});
+			console.log(inputChunks[i]);
+			if (inpCd == 'doubledigit' && !(updatedBrCds.includes(parseInt(inputChunks[i])))
+			   || inpCd == 'settype' && !(updatedBrCds2.includes(parseInt(inputChunks[i])))) {
+    			console.log('inside');
+				var colorClass = 'error';		  
+				var postChkValues = '<span class="' + colorClass + '">' + inputChunks[i] + '</span>';
+				tmpChunk += '-' + postChkValues;
+				//var errorMsg = '<span class="' + colorClass + '">' + 'Invalid Bearing Code Entered: ' + '</span>';
+                var errorMsg = '<span class="bad">' + 'Invalid Bearing Code Entered: ' + '</span>';                
+			} 
+      }	  
+	  
+	  //var errorMsg = '<span class="' + colorClass + '">' + 'Invalid Bearing Code Entered' + '</span>';
+	  if (tmpChunk != '') {
+	  document.getElementById('result').innerHTML  = errorMsg + tmpChunk.substr(1);
+	  document.getElementById('addButton').disabled = true;
+	  }	  
+	  
+    }
+
+    function valAmt() {
+        if (document.getElementById('amount').value == "" || document.getElementById('folder').value == "empty") {
+            document.getElementById('addButton').disabled = true;
+        }
+        else if (document.getElementById('amount').value != "") {
+            validateInput();
+        }
+    }
+
+    //if ( window.history.replaceState ) {
+      //  window.history.replaceState( {}, null, window.location.href );
+    //}
+
+</script>
